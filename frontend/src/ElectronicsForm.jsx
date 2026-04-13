@@ -1,13 +1,17 @@
 import { useState } from 'react';
+import { useAuth } from './provider/authProvider';
+import axiosInstance from './api/axiosConfig';
 
 function ElectronicsForm({ onElectronicAdded }) {
+    const { isAdmin } = useAuth();
+
     const [name, setName] = useState('');
     const [price, setPrice] = useState('');
     const [stock, setStock] = useState('');
     const [brand, setBrand] = useState('');
     const [category, setCategory] = useState('Laptop');
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
 
         const parsedPrice = parseFloat(price);
@@ -31,36 +35,37 @@ function ElectronicsForm({ onElectronicAdded }) {
             category
         };
 
-        fetch('/api/electronics', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newElectronic),
-        })
-            .then(response => response.json())
-            .then(savedElectronic => {
-                alert('Electronic Item Saved!');
-                onElectronicAdded(savedElectronic);
-                setName('');
-                setPrice('');
-                setStock('');
-                setBrand('');
-                setCategory('Laptop');
-            });
+        try {
+            const response = await axiosInstance.post('/electronics', newElectronic);
+            const savedElectronic = response.data;
+
+            alert('Electronic Item Saved!');
+            onElectronicAdded(savedElectronic);
+
+            setName('');
+            setPrice('');
+            setStock('');
+            setBrand('');
+            setCategory('Laptop');
+        } catch (error) {
+            console.error('Error saving electronic item:', error);
+            alert('Failed to save electronic item.');
+        }
     };
 
+    if (!isAdmin) {
+        return null;
+    }
+
     return (
-        <form
-            onSubmit={handleSubmit}
-            style={{ border: '2px solid blue', padding: '20px', marginBottom: '20px' }}
-        >
-            <h3>Add New Electronic Item</h3>
+        <form onSubmit={handleSubmit}>
+            <h2>Add New Electronic Item</h2>
 
             <input
                 type="text"
                 placeholder="Name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                required
             />
 
             <input
@@ -68,8 +73,6 @@ function ElectronicsForm({ onElectronicAdded }) {
                 placeholder="Price"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                required
-                step="0.01"
             />
 
             <input
@@ -77,7 +80,6 @@ function ElectronicsForm({ onElectronicAdded }) {
                 placeholder="Stock"
                 value={stock}
                 onChange={(e) => setStock(e.target.value)}
-                required
             />
 
             <input
@@ -85,18 +87,14 @@ function ElectronicsForm({ onElectronicAdded }) {
                 placeholder="Brand"
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
-                required
             />
 
-            <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-            >
+            <select value={category} onChange={(e) => setCategory(e.target.value)}>
                 <option value="Laptop">Laptop</option>
                 <option value="Mobile">Mobile</option>
             </select>
 
-            <button type="submit">Save to Database</button>
+            <button type="submit">Save Electronic Item</button>
         </form>
     );
 }

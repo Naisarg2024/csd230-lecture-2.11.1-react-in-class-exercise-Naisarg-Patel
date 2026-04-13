@@ -1,6 +1,9 @@
 import { useState } from 'react';
+import { useAuth } from './provider/authProvider';
 
 function Electronics({ id, name, price, stock, brand, category, onDelete, onUpdate }) {
+    const { isAdmin } = useAuth();
+
     const [isEditing, setIsEditing] = useState(false);
     const [tempName, setTempName] = useState(name);
     const [tempPrice, setTempPrice] = useState(price);
@@ -21,7 +24,7 @@ function Electronics({ id, name, price, stock, brand, category, onDelete, onUpda
         setIsEditing(false);
     };
 
-    if (isEditing) {
+    if (isEditing && isAdmin) {
         return (
             <div
                 style={{
@@ -88,10 +91,14 @@ function Electronics({ id, name, price, stock, brand, category, onDelete, onUpda
             <p><strong>Brand:</strong> {brand}</p>
             <p><strong>Category:</strong> {category}</p>
 
-            <button onClick={() => setIsEditing(true)}>Update</button>
-            <button onClick={() => onDelete(id)} style={{ marginLeft: '10px' }}>
-                Delete
-            </button>
+            {isAdmin && (
+                <>
+                    <button onClick={() => setIsEditing(true)}>Update</button>
+                    <button onClick={() => onDelete(id)} style={{ marginLeft: '10px' }}>
+                        Delete
+                    </button>
+                </>
+            )}
         </div>
     );
 }

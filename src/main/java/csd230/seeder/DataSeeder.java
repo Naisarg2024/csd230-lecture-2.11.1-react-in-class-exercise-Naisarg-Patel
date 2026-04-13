@@ -1,99 +1,139 @@
 package csd230.seeder;
 
-import csd230.entities.*;
+import csd230.entities.BookEntity;
+import csd230.entities.ElectronicsEntity;
+import csd230.entities.MagazineEntity;
+import csd230.entities.UserEntity;
 import csd230.repositories.BookRepository;
-import csd230.repositories.MagazineRepository;
 import csd230.repositories.ElectronicsRepository;
-import net.datafaker.Faker;
+import csd230.repositories.MagazineRepository;
+import csd230.repositories.UserEntityRepository;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.concurrent.TimeUnit;
 
 @Component
 public class DataSeeder implements CommandLineRunner {
 
+    private final UserEntityRepository userRepository;
     private final BookRepository bookRepository;
     private final MagazineRepository magazineRepository;
     private final ElectronicsRepository electronicsRepository;
-    private final Faker faker;
+    private final PasswordEncoder passwordEncoder;
 
-    public DataSeeder(BookRepository bookRepository, MagazineRepository magazineRepository, ElectronicsRepository electronicsRepository) {
+    public DataSeeder(UserEntityRepository userRepository,
+                      BookRepository bookRepository,
+                      MagazineRepository magazineRepository,
+                      ElectronicsRepository electronicsRepository,
+                      PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
         this.bookRepository = bookRepository;
         this.magazineRepository = magazineRepository;
         this.electronicsRepository = electronicsRepository;
-        this.faker = new Faker();
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
-    public void run(String... args) throws Exception {
-        // Only seed if the database is empty
-        if (bookRepository.count() == 0) {
-            seedBooks();
-            seedMagazines();
-            seedElectronics();
+    public void run(String... args) {
+        seedUsers();
+        seedBooks();
+        seedMagazines();
+        seedElectronics();
+    }
+
+    private void seedUsers() {
+        if (userRepository.findByUsername("admin") == null) {
+            UserEntity admin = new UserEntity();
+            admin.setUsername("admin");
+            admin.setPassword(passwordEncoder.encode("password"));
+            admin.setRole("ROLE_ADMIN");
+            userRepository.save(admin);
+        }
+
+        if (userRepository.findByUsername("user") == null) {
+            UserEntity user = new UserEntity();
+            user.setUsername("user");
+            user.setPassword(passwordEncoder.encode("password"));
+            user.setRole("ROLE_USER");
+            userRepository.save(user);
         }
     }
 
     private void seedBooks() {
-        System.out.println("Seeding Books...");
-        for (int i = 0; i < 10; i++) {
-            BookEntity book = new BookEntity(
-                    faker.book().title(),                // Title
-                    faker.number().randomDouble(2, 10, 100), // Price
-                    faker.number().numberBetween(1, 50), // Copies
-                    faker.book().author()                // Author
-            );
-            bookRepository.save(book);
-        }
+        if (bookRepository.count() > 0) return;
+
+        BookEntity b1 = new BookEntity();
+        b1.setTitle("Clean Code");
+        b1.setAuthor("Robert C. Martin");
+        b1.setPrice(45.99);
+        b1.setCopies(10);
+
+        BookEntity b2 = new BookEntity();
+        b2.setTitle("Effective Java");
+        b2.setAuthor("Joshua Bloch");
+        b2.setPrice(54.99);
+        b2.setCopies(8);
+
+        BookEntity b3 = new BookEntity();
+        b3.setTitle("Spring in Action");
+        b3.setAuthor("Craig Walls");
+        b3.setPrice(49.99);
+        b3.setCopies(6);
+
+        bookRepository.save(b1);
+        bookRepository.save(b2);
+        bookRepository.save(b3);
     }
 
     private void seedMagazines() {
-        System.out.println("Seeding Magazines...");
-        for (int i = 0; i < 5; i++) {
-            // Convert Faker Date to LocalDateTime
-            LocalDateTime issueDate = faker.date().past(365, TimeUnit.DAYS)
-                    .toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+        if (magazineRepository.count() > 0) return;
 
-            MagazineEntity mag = new MagazineEntity(
-                    faker.book().publisher() + " Weekly", // Using publisher as magazine title
-                    faker.number().randomDouble(2, 5, 20),
-                    faker.number().numberBetween(10, 100),
-                    faker.number().numberBetween(100, 500), // Order Qty
-                    issueDate
-            );
-            magazineRepository.save(mag);
-        }
+        MagazineEntity m1 = new MagazineEntity();
+        m1.setTitle("Tech Monthly");
+        m1.setPrice(9.99);
+        m1.setCopies(20);
+        m1.setOrderQty(50);
+        m1.setCurrentIssue(LocalDateTime.now().minusDays(10));
+
+        MagazineEntity m2 = new MagazineEntity();
+        m2.setTitle("Java World");
+        m2.setPrice(7.99);
+        m2.setCopies(15);
+        m2.setOrderQty(40);
+        m2.setCurrentIssue(LocalDateTime.now().minusDays(20));
+
+        magazineRepository.save(m1);
+        magazineRepository.save(m2);
     }
-    // to generate mock data for my niche product : Electronics (laptop/mobile)
+
     private void seedElectronics() {
-        System.out.println("Seeding Electronics...");
+        if (electronicsRepository.count() > 0) return;
 
-        String[] brands = {"Apple", "Samsung", "Dell", "HP", "Lenovo", "Asus"};
-        String[] categories = {"Laptop", "Mobile"};
+        ElectronicsEntity e1 = new ElectronicsEntity();
+        e1.setName("Dell XPS 13");
+        e1.setBrand("Dell");
+        e1.setCategory("Laptop");
+        e1.setPrice(1499.99);
+        e1.setStock(5);
 
-        for (int i = 0; i < 8; i++) {
-            String brand = faker.options().option(brands);
-            String category = faker.options().option(categories);
+        ElectronicsEntity e2 = new ElectronicsEntity();
+        e2.setName("iPhone 15");
+        e2.setBrand("Apple");
+        e2.setCategory("Mobile");
+        e2.setPrice(1299.99);
+        e2.setStock(7);
 
-            String name;
-            if (category.equals("Laptop")) {
-                name = brand + " " + faker.lorem().word() + " Laptop";
-            } else {
-                name = brand + " " + faker.lorem().word() + " Phone";
-            }
+        ElectronicsEntity e3 = new ElectronicsEntity();
+        e3.setName("ThinkPad X1");
+        e3.setBrand("Lenovo");
+        e3.setCategory("Laptop");
+        e3.setPrice(1399.99);
+        e3.setStock(4);
 
-            ElectronicsEntity electronic = new ElectronicsEntity(
-                    name,
-                    faker.number().randomDouble(2, 300, 2500),
-                    faker.number().numberBetween(1, 40),
-                    brand,
-                    category
-            );
-
-            electronicsRepository.save(electronic);
-        }
+        electronicsRepository.save(e1);
+        electronicsRepository.save(e2);
+        electronicsRepository.save(e3);
     }
 }

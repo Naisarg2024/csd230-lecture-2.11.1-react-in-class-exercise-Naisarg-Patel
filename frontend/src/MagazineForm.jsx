@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import axiosInstance from './api/axiosConfig';
 
 function MagazineForm({ onMagazineAdded }) {
     const [title, setTitle] = useState('');
@@ -23,38 +24,25 @@ function MagazineForm({ onMagazineAdded }) {
         }
 
         const newMagazine = {
-            t: title.trim(),
-            p: parsedPrice,
-            c: parsedOrderQty,
-            o: parsedOrderQty,
-            d: `${currentIssue}T00:00:00`
+            title: title.trim(),
+            price: parsedPrice,
+            orderQty: parsedOrderQty,
+            currentIssue: `${currentIssue}T00:00:00`
         };
 
-        console.log('FINAL PAYLOAD:', newMagazine);
-
         try {
-            const response = await fetch('/api/magazines', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newMagazine),
-            });
-
-            const data = await response.json();
-            console.log('POST /api/magazines response:', data);
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to save magazine');
-            }
+            const response = await axiosInstance.post('/magazines', newMagazine);
+            const savedMagazine = response.data;
 
             alert('Magazine Saved!');
-            onMagazineAdded();
+            onMagazineAdded(savedMagazine);
             setTitle('');
             setPrice('');
             setOrderQty('');
             setCurrentIssue('');
         } catch (error) {
-            console.error(error);
-            alert(error.message);
+            console.error('Error saving magazine:', error);
+            alert('Failed to save magazine.');
         }
     };
 

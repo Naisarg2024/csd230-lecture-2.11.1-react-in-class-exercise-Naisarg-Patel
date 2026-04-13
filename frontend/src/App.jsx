@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Navbar from './Navbar'
 import Home from './Home'
 import Book from './Book'
@@ -8,6 +8,9 @@ import Magazine from './Magazine'
 import MagazineForm from './MagazineForm'
 import Electronics from './Electronics'
 import ElectronicsForm from './ElectronicsForm'
+import Login from './pages/Login'
+import { useAuth } from './provider/authProvider'
+import axiosInstance from './api/axiosConfig'
 import './App.css'
 
 function App() {
@@ -16,185 +19,237 @@ function App() {
     const [loading, setLoading] = useState(true);
     const [electronics, setElectronics] = useState([]);
 
+    const { isAdmin, isAuthenticated } = useAuth();
+
     useEffect(() => {
-        Promise.all([
-            fetch('/api/books').then(res => res.json()),
-            fetch('/api/magazines').then(res => res.json()),
-            fetch('/api/electronics').then(res => res.json())
-        ]).then(([bookData, magazineData, electronicsData]) => {
-            setBooks(bookData);
-            setMagazines(magazineData);
-            setElectronics(electronicsData);
+        if (!isAuthenticated) {
+            setBooks([]);
+            setMagazines([]);
+            setElectronics([]);
             setLoading(false);
-        });
-    }, []);
+            return;
+        }
+
+        setLoading(true);
+
+        Promise.all([
+            axiosInstance.get('/books'),
+            axiosInstance.get('/magazines'),
+            axiosInstance.get('/electronics')
+        ])
+            .then(([bookResponse, magazineResponse, electronicsResponse]) => {
+                setBooks(bookResponse.data);
+                setMagazines(magazineResponse.data);
+                setElectronics(electronicsResponse.data);
+            })
+            .catch(error => {
+                console.error('Error loading data:', error);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    }, [isAuthenticated]);
 
     const handleAddBook = (newBook) => {
-        setBooks([...books, newBook]);
+        setBooks((prev) => [...prev, newBook]);
     };
 
     const handleDeleteBook = (id) => {
-        if (!window.confirm("Delete this book?")) return;
-        fetch(`/api/books/${id}`, { method: 'DELETE' })
-            .then(res => {
-                if (res.ok) setBooks(books.filter(b => b.id !== id));
-            });
+        if (!window.confirm('Delete this book?')) return;
+
+        axiosInstance.delete(`/books/${id}`)
+            .then(() => {
+                setBooks((prev) => prev.filter(b => b.id !== id));
+            })
+            .catch(error => console.error('Error deleting book:', error));
     };
 
     const handleUpdateBook = (id, updatedData) => {
-        fetch(`/api/books/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedData)
-        })
-            .then(res => res.json())
-            .then(savedBook => {
-                setBooks(books.map(b => (b.id === id ? savedBook : b)));
-            });
+        axiosInstance.put(`/books/${id}`, updatedData)
+            .then(response => {
+                const savedBook = response.data;
+                setBooks((prev) => prev.map(b => (b.id === id ? savedBook : b)));
+            })
+            .catch(error => console.error('Error updating book:', error));
     };
 
-    const handleAddMagazine = () => {
-        fetch('/api/magazines')
-            .then(res => res.json())
-            .then(data => {
-                console.log("GET /api/magazines response:", data);
-                setMagazines(data);
-            });
+    const handleAddMagazine = (savedMagazine) => {
+        if (savedMagazine) {
+            setMagazines((prev) => [...prev, savedMagazine]);
+            return;
+        }
+
+        axiosInstance.get('/magazines')
+            .then(response => {
+                setMagazines(response.data);
+            })
+            .catch(error => console.error('Error refreshing magazines:', error));
     };
 
     const handleDeleteMagazine = (id) => {
-        if (!window.confirm("Delete this magazine?")) return;
-        fetch(`/api/magazines/${id}`, { method: 'DELETE' })
-            .then(res => {
-                if (res.ok) setMagazines(magazines.filter(m => m.id !== id));
-            });
+        if (!window.confirm('Delete this magazine?')) return;
+
+        axiosInstance.delete(`/magazines/${id}`)
+            .then(() => {
+                setMagazines((prev) => prev.filter(m => m.id !== id));
+            })
+            .catch(error => console.error('Error deleting magazine:', error));
     };
 
     const handleUpdateMagazine = (id, updatedData) => {
-        fetch(`/api/magazines/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedData)
-        })
-            .then(res => res.json())
-            .then(savedMagazine => {
-                setMagazines(magazines.map(m => (m.id === id ? savedMagazine : m)));
-            });
+        axiosInstance.put(`/magazines/${id}`, updatedData)
+            .then(response => {
+                const savedMagazine = response.data;
+                setMagazines((prev) => prev.map(m => (m.id === id ? savedMagazine : m)));
+            })
+            .catch(error => console.error('Error updating magazine:', error));
     };
 
     const handleAddElectronic = (newElectronic) => {
-        setElectronics([...electronics, newElectronic]);
+        setElectronics((prev) => [...prev, newElectronic]);
     };
 
     const handleDeleteElectronic = (id) => {
-        if (!window.confirm("Delete this electronic item?")) return;
-        fetch(`/api/electronics/${id}`, { method: 'DELETE' })
-            .then(res => {
-                if (res.ok) setElectronics(electronics.filter(e => e.id !== id));
-            });
+        if (!window.confirm('Delete this electronic item?')) return;
+
+        axiosInstance.delete(`/electronics/${id}`)
+            .then(() => {
+                setElectronics((prev) => prev.filter(e => e.id !== id));
+            })
+            .catch(error => console.error('Error deleting electronic item:', error));
     };
 
     const handleUpdateElectronic = (id, updatedData) => {
-        fetch(`/api/electronics/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedData)
-        })
-            .then(res => res.json())
-            .then(savedElectronic => {
-                setElectronics(electronics.map(e => (e.id === id ? savedElectronic : e)));
-            });
+        axiosInstance.put(`/electronics/${id}`, updatedData)
+            .then(response => {
+                const savedElectronic = response.data;
+                setElectronics((prev) => prev.map(e => (e.id === id ? savedElectronic : e)));
+            })
+            .catch(error => console.error('Error updating electronic item:', error));
     };
 
-    if (loading) return <h2>Loading...</h2>;
+    if (loading) {
+        return <h2>Loading...</h2>;
+    }
 
     return (
-        <div className="app-container" style={{ maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
-            <Navbar />
+        <div className="App">
+            {isAuthenticated && <Navbar />}
 
             <Routes>
-                <Route path="/" element={<Home />} />
+                <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/" />} />
+
+                <Route
+                    path="/"
+                    element={isAuthenticated ? <Home /> : <Navigate to="/login" />}
+                />
 
                 <Route
                     path="/inventory"
                     element={
-                        <div className="book-list">
-                            <h1>Current Inventory</h1>
-                            {books.map((b) => (
-                                <Book
-                                    key={b.id}
-                                    {...b}
-                                    onDelete={handleDeleteBook}
-                                    onUpdate={handleUpdateBook}
-                                />
-                            ))}
-                        </div>
+                        isAuthenticated ? (
+                            <div className="book-list">
+                                <h1>Current Inventory</h1>
+                                {books.map((book) => (
+                                    <Book
+                                        key={book.id}
+                                        {...book}
+                                        onDelete={handleDeleteBook}
+                                        onUpdate={handleUpdateBook}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <Navigate to="/login" />
+                        )
                     }
                 />
 
                 <Route
                     path="/add"
                     element={
-                        <div>
-                            <h1>Add to Library</h1>
-                            <BookForm onBookAdded={handleAddBook} />
-                        </div>
+                        isAuthenticated && isAdmin ? (
+                            <div>
+                                <h1>Add New Book</h1>
+                                <BookForm onBookAdded={handleAddBook} />
+                            </div>
+                        ) : (
+                            <Navigate to="/" />
+                        )
                     }
                 />
 
                 <Route
                     path="/magazines"
                     element={
-                        <div className="book-list">
-                            <h1>Current Magazines</h1>
-                            {magazines.map((m) => (
-                                <Magazine
-                                    key={m.id}
-                                    {...m}
-                                    onDelete={handleDeleteMagazine}
-                                    onUpdate={handleUpdateMagazine}
-                                />
-                            ))}
-                        </div>
+                        isAuthenticated ? (
+                            <div className="book-list">
+                                <h1>Current Magazines</h1>
+                                {magazines.map((magazine) => (
+                                    <Magazine
+                                        key={magazine.id}
+                                        {...magazine}
+                                        onDelete={handleDeleteMagazine}
+                                        onUpdate={handleUpdateMagazine}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <Navigate to="/login" />
+                        )
                     }
                 />
 
                 <Route
                     path="/add-magazine"
                     element={
-                        <div>
-                            <h1>Add Magazine</h1>
-                            <MagazineForm onMagazineAdded={handleAddMagazine} />
-                        </div>
+                        isAuthenticated && isAdmin ? (
+                            <div>
+                                <h1>Add Magazine</h1>
+                                <MagazineForm onMagazineAdded={handleAddMagazine} />
+                            </div>
+                        ) : (
+                            <Navigate to="/" />
+                        )
                     }
                 />
 
                 <Route
                     path="/electronics"
                     element={
-                        <div className="book-list">
-                            <h1>Current Electronics</h1>
-                            {electronics.map((e) => (
-                                <Electronics
-                                    key={e.id}
-                                    {...e}
-                                    onDelete={handleDeleteElectronic}
-                                    onUpdate={handleUpdateElectronic}
-                                />
-                            ))}
-                        </div>
+                        isAuthenticated ? (
+                            <div className="book-list">
+                                <h1>Current Electronics</h1>
+                                {electronics.map((electronic) => (
+                                    <Electronics
+                                        key={electronic.id}
+                                        {...electronic}
+                                        onDelete={handleDeleteElectronic}
+                                        onUpdate={handleUpdateElectronic}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <Navigate to="/login" />
+                        )
                     }
                 />
 
                 <Route
                     path="/add-electronic"
                     element={
-                        <div>
-                            <h1>Add Electronic Item</h1>
-                            <ElectronicsForm onElectronicAdded={handleAddElectronic} />
-                        </div>
+                        isAuthenticated && isAdmin ? (
+                            <div>
+                                <h1>Add Electronic Item</h1>
+                                <ElectronicsForm onElectronicAdded={handleAddElectronic} />
+                            </div>
+                        ) : (
+                            <Navigate to="/" />
+                        )
                     }
                 />
+
+                <Route path="*" element={<Navigate to={isAuthenticated ? "/" : "/login"} />} />
             </Routes>
         </div>
     )
